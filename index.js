@@ -2,31 +2,39 @@ const express = require("express");
 const app = express();
 app.use(express.json());
 
-let messages = []; // Store all messages temporarily
-const MESSAGE_LIFETIME = 5000; // 5 seconds in milliseconds
+let Messages = [];                  // [{ Data, ExpiresAt }]
+const MessageLifetime = 5000;       // 5 seconds
+
+function pruneExpired() {
+  const now = Date.now();
+  Messages = Messages.filter(m => m.ExpiresAt > now);
+}
 
 // Discord bot sends a message
 app.post("/send", (req, res) => {
-    const message = {
-        data: req.body,
-        timestamp: Date.now() // mark the time the message was received
-    };
-    messages.push(message);
-    console.log("Received:", req.body);
+  const message = {
+    Data: req.body,                 // e.g. { User: "...", Message: "..." }
+    ExpiresAt: Date.now() + MessageLifetime
+  };
+  Messages.push(message);
+  console.log("Received:", message.Data);
 
-    // Automatically remove this message after 5 seconds
-    setTimeout(() => {
-        const index = messages.indexOf(message);
-        if (index > -1) messages.splice(index, 1);
-    }, MESSAGE_LIFETIME);
+  // Auto-delete after 5 seconds (no-op if already fetched)
+  setTimeout(() => {
+    const idx = Messages.indexOf(message);
+    if (idx > -1) Messages.splice(idx, 1);
+  }, MessageLifetime);
 
-    res.send("Message added!");
+  res.send("Message added!");
 });
 
 // Roblox fetches messages
 app.get("/fetch", (req, res) => {
-    // Only send the message data, not timestamps
-    res.json(messages.map(msg => msg.data));
+  pruneExpired();
+  const batch = Messages.map(m => m.Data); // send only the payload
+  Messages.length = 0;                     // delete everything we just returned
+  res.set("Cache-Control", "no-store");    // avoid intermediary caching
+  res.json(batch);                         // [] when no messages
 });
 
 const PORT = process.env.PORT || 3000;
