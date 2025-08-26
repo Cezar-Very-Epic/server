@@ -2,20 +2,20 @@ const express = require("express");
 const app = express();
 app.use(express.json());
 
-let lastData = {}; // Stores the latest message
+let messages = []; // Store all messages temporarily
 
-// Endpoint Discord bot POSTs data to
+// Discord bot sends a message
 app.post("/send", (req, res) => {
-    lastData = req.body; // Example: { User: "username", Message: "text" }
-    console.log("Received:", lastData);
-    res.send("Data received!");
+    messages.push(req.body); // Add message to the array
+    console.log("Received:", req.body);
+    res.send("Message added!");
 });
 
-// Endpoint Roblox GETs data from
+// Roblox fetches messages
 app.get("/fetch", (req, res) => {
-    res.json(lastData);
+    res.json(messages);
+    messages = []; // Clear after sending to Roblox
 });
 
-// Use Railway provided port or default 3000
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
